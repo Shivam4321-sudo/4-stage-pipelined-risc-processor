@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4-Stage Pipelined RISC Processor — Technical Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --blue:    #1a56db;
+    --blue2:   #1e40af;
+    --teal:    #0891b2;
+    --green:   #059669;
+    --amber:   #d97706;
+    --red:     #dc2626;
+    --purple:  #7c3aed;
+    --gray50:  #f8fafc;
+    --gray100: #f1f5f9;
+    --gray200: #e2e8f0;
+    --gray400: #94a3b8;
+    --gray600: #475569;
+    --gray800: #1e293b;
+    --gray900: #0f172a;
+    --white:   #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--gray50);
+    color: var(--gray800);
+    line-height: 1.7;
+  }
+
+  /* ── Cover ─────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    color: #fff;
+    padding: 80px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+  .cover::before {
+    content:'';
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(
+      45deg, transparent, transparent 40px,
+      rgba(255,255,255,.018) 40px, rgba(255,255,255,.018) 80px
+    );
+  }
+  .cover-badge {
+    display: inline-block;
+    background: rgba(26,86,219,.35);
+    border: 1px solid rgba(26,86,219,.6);
+    color: #93c5fd;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 18px;
+    border-radius: 20px;
+    margin-bottom: 28px;
+  }
+  .cover h1 {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    background: linear-gradient(90deg,#60a5fa,#a78bfa,#60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .cover-sub {
+    font-size: 18px;
+    color: #94a3b8;
+    margin-bottom: 40px;
+  }
+  .cover-pipeline {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+    margin: 40px 0;
+  }
+  .pipe-stage {
+    background: rgba(255,255,255,.07);
+    border: 1.5px solid rgba(255,255,255,.15);
+    border-radius: 10px;
+    padding: 16px 22px;
+    text-align: center;
+    min-width: 110px;
+  }
+  .pipe-stage .stage-num { font-size:11px; color:#64748b; font-weight:600; letter-spacing:1px; }
+  .pipe-stage .stage-name { font-size:18px; font-weight:700; color:#e2e8f0; margin:4px 0; }
+  .pipe-stage .stage-desc { font-size:11px; color:#94a3b8; line-height:1.4; }
+  .pipe-arrow {
+    color: #1a56db;
+    font-size: 22px;
+    margin: 0 6px;
+    flex-shrink: 0;
+  }
+  .cover-meta {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 48px;
+    flex-wrap: wrap;
+  }
+  .meta-item { text-align: center; }
+  .meta-item .meta-label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:1px; }
+  .meta-item .meta-value { font-size:15px; color:#e2e8f0; font-weight:600; margin-top:4px; }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Section headers ─────────────────────────────────── */
+  .section {
+    background: var(--white);
+    border-radius: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 24px rgba(0,0,0,.04);
+    margin: 32px 0;
+    overflow: hidden;
+  }
+  .section-header {
+    background: linear-gradient(90deg, #1e3a5f, #1e40af);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-icon { font-size: 22px; }
+  .section-header h2 { font-size: 20px; font-weight: 700; }
+  .section-body { padding: 32px; }
+
+  /* ── Feature cards ───────────────────────────────────── */
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 16px; margin-top: 20px; }
+  .feature-card {
+    border: 1.5px solid var(--gray200);
+    border-radius: 12px;
+    padding: 20px;
+    background: var(--gray50);
+    transition: box-shadow .2s;
+  }
+  .feature-card:hover { box-shadow: 0 4px 20px rgba(26,86,219,.1); border-color: #93c5fd; }
+  .feature-card .fc-icon { font-size: 26px; margin-bottom: 10px; }
+  .feature-card .fc-title { font-size: 13px; font-weight: 700; color: var(--gray800); margin-bottom: 6px; }
+  .feature-card .fc-desc { font-size: 12px; color: var(--gray600); line-height: 1.55; }
+
+  /* ── Pipeline diagram ────────────────────────────────── */
+  .pipeline-diagram { width: 100%; overflow-x: auto; }
+
+  /* ── Waveform ────────────────────────────────────────── */
+  .waveform-container { background: #0a0f1e; border-radius: 12px; padding: 20px; overflow-x: auto; margin-top: 20px; }
+  .waveform-title { color: #60a5fa; font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-bottom: 14px; letter-spacing: 1px; }
+
+  /* ── Tables ──────────────────────────────────────────── */
+  .data-table { width:100%; border-collapse:collapse; font-size:13.5px; margin-top:16px; }
+  .data-table th { background:#1e3a5f; color:#e2e8f0; padding:10px 14px; text-align:left; font-weight:600; font-size:12px; letter-spacing:.5px; }
+  .data-table td { padding:10px 14px; border-bottom:1px solid var(--gray200); }
+  .data-table tr:nth-child(even) td { background: var(--gray50); }
+  .data-table tr:hover td { background: #eff6ff; }
+  .badge-pass { background:#d1fae5; color:#065f46; font-size:11px; font-weight:700; padding:2px 10px; border-radius:20px; }
+  .badge-info { background:#dbeafe; color:#1e40af; font-size:11px; font-weight:700; padding:2px 10px; border-radius:20px; }
+  .badge-warn { background:#fef3c7; color:#92400e; font-size:11px; font-weight:700; padding:2px 10px; border-radius:20px; }
+
+  /* ── Code block ──────────────────────────────────────── */
+  .code-block {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    padding: 20px 24px;
+    border-radius: 10px;
+    overflow-x: auto;
+    line-height: 1.65;
+    margin-top: 12px;
+    border-left: 3px solid #1a56db;
+  }
+  .kw  { color: #ff7b72; }
+  .cm  { color: #8b949e; font-style: italic; }
+  .nm  { color: #79c0ff; }
+  .st  { color: #a5d6ff; }
+  .op  { color: #ffa657; }
+
+  /* ── Info box ────────────────────────────────────────── */
+  .info-box { background:#eff6ff; border-left:4px solid #3b82f6; padding:14px 18px; border-radius:8px; font-size:13.5px; margin-top:16px; }
+  .warn-box { background:#fffbeb; border-left:4px solid #f59e0b; padding:14px 18px; border-radius:8px; font-size:13.5px; margin-top:16px; }
+
+  /* ── Resource bar ────────────────────────────────────── */
+  .resource-row { display:flex; align-items:center; gap:14px; margin:12px 0; }
+  .resource-label { width:80px; font-size:13px; font-weight:600; color:var(--gray600); flex-shrink:0; }
+  .resource-bar-bg { flex:1; background:var(--gray200); border-radius:6px; height:18px; overflow:hidden; }
+  .resource-bar { height:100%; border-radius:6px; transition:width .6s ease; display:flex; align-items:center; padding-left:8px; }
+  .resource-pct { font-size:11px; font-weight:700; color:#fff; }
+  .resource-used { font-size:12px; color:var(--gray600); width:120px; text-align:right; flex-shrink:0; }
+
+  /* ── Hazard timeline ─────────────────────────────────── */
+  .hazard-box {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 20px;
+    overflow-x: auto;
+  }
+
+  /* ── Instruction chip ────────────────────────────────── */
+  .instr-chip { display:inline-block; background:#1e3a5f; color:#93c5fd; font-family:'JetBrains Mono',monospace; font-size:12px; padding:3px 10px; border-radius:5px; margin:2px; }
+
+  /* ── Two-col ─────────────────────────────────────────── */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media(max-width:700px){ .two-col { grid-template-columns:1fr; } .cover h1{font-size:28px;} .cover-pipeline{flex-direction:column;} }
+
+  /* ── Result summary ──────────────────────────────────── */
+  .result-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; margin-top:20px; }
+  .result-card { background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1.5px solid #86efac; border-radius:12px; padding:18px; text-align:center; }
+  .result-card .rc-val { font-size:28px; }
+  .result-card .rc-label { font-size:12px; color:#166534; font-weight:600; margin-top:4px; }
+
+  /* ── TOC ─────────────────────────────────────────────── */
+  .toc { background:var(--white); border-radius:16px; box-shadow:0 1px 4px rgba(0,0,0,.06); margin:32px 0; padding:32px; }
+  .toc h2 { font-size:18px; font-weight:700; margin-bottom:16px; color:var(--blue2); }
+  .toc ol { padding-left:20px; }
+  .toc li { margin:8px 0; }
+  .toc a { color:var(--blue); text-decoration:none; font-size:14px; }
+  .toc a:hover { text-decoration:underline; }
+
+  /* ── Footer ──────────────────────────────────────────── */
+  .footer { background:#0f172a; color:#475569; text-align:center; padding:30px; font-size:13px; margin-top:40px; }
+  .footer span { color:#60a5fa; }
+
+  /* Print */
+  @media print { body{background:#fff;} .section{box-shadow:none; border:1px solid #ddd;} }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <div style="position:relative;z-index:1;">
+    <div class="cover-badge">Technical Project Report</div>
+    <h1>4-Stage Pipelined<br>RISC Processor</h1>
+    <div class="cover-sub">Verilog HDL · RISC-V RV32I Subset · Xilinx Vivado</div>
+
+    <!-- Pipeline flow graphic -->
+    <div class="cover-pipeline">
+      <div class="pipe-stage">
+        <div class="stage-num">STAGE 1</div>
+        <div class="stage-name">IF</div>
+        <div class="stage-desc">Instruction<br>Fetch</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-stage">
+        <div class="stage-num">STAGE 2</div>
+        <div class="stage-name">ID</div>
+        <div class="stage-desc">Decode &<br>Reg Read</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-stage">
+        <div class="stage-num">STAGE 3</div>
+        <div class="stage-name">EX</div>
+        <div class="stage-desc">ALU &<br>Forwarding</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-stage" style="border-color:rgba(99,102,241,.6);background:rgba(99,102,241,.15);">
+        <div class="stage-num">STAGE 4</div>
+        <div class="stage-name" style="color:#a5b4fc;">MEM/WB</div>
+        <div class="stage-desc">Memory +<br>Write Back</div>
+      </div>
+    </div>
+
+    <div class="cover-meta">
+      <div class="meta-item"><div class="meta-label">Author</div><div class="meta-value">Shivam Sharma</div></div>
+      <div class="meta-item"><div class="meta-label">Roll No.</div><div class="meta-value">225EC50006</div></div>
+      <div class="meta-item"><div class="meta-label">Department</div><div class="meta-value">Electronics & Communication</div></div>
+      <div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">December 2025</div></div>
+      <div class="meta-item"><div class="meta-label">Tools</div><div class="meta-value">Xilinx Vivado · Verilog HDL</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="container" style="padding-top:40px; padding-bottom:40px;">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>📋 Table of Contents</h2>
+    <ol>
+      <li><a href="#s1">Project Overview & Objectives</a></li>
+      <li><a href="#s2">Pipeline Architecture</a></li>
+      <li><a href="#s3">Module Hierarchy & RTL Design</a></li>
+      <li><a href="#s4">Hazard Handling Mechanisms</a></li>
+      <li><a href="#s5">Waveform Analysis & Simulation Results</a></li>
+      <li><a href="#s6">Instruction Set & Encoding</a></li>
+      <li><a href="#s7">Control Signal Truth Table</a></li>
+      <li><a href="#s8">Resource Utilization & Timing</a></li>
+      <li><a href="#s9">Test Results Summary</a></li>
+      <li><a href="#s10">RTL Code Snippets</a></li>
+      <li><a href="#s11">Known Limitations & Future Work</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══ S1: OVERVIEW -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <span class="section-icon">🔬</span>
+      <h2>1. Project Overview &amp; Objectives</h2>
+    </div>
+    <div class="section-body">
+      <p>This project implements a fully functional <strong>4-stage pipelined RISC processor</strong> using Verilog HDL, modelled on the classic RISC-V RV32I architecture. The design merges the traditional Memory Access and Write Back stages into a combined <em>MEM/WB</em> stage, reducing hardware complexity while retaining the performance benefits of pipelining.</p>
+
+      <div class="feature-grid" style="margin-top:24px;">
+        <div class="feature-card">
+          <div class="fc-icon">⚙️</div>
+          <div class="fc-title">4-Stage Pipeline</div>
+          <div class="fc-desc">IF → ID → EX → MEM/WB with full interlocking and forwarding logic.</div>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🔁</div>
+          <div class="fc-title">Data Forwarding</div>
+          <div class="fc-desc">EX–EX and MEM–EX forwarding resolves most data hazards with zero penalty cycles.</div>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🛑</div>
+          <div class="fc-title">Hazard Detection</div>
+          <div class="fc-desc">Load-use stall detection inserts NOP bubbles automatically; branch flushes IF/ID.</div>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">📦</div>
+          <div class="fc-title">17 Instructions</div>
+          <div class="fc-desc">ADD, SUB, ADDI, AND, OR, XOR, SLT, SLL, SRL, SRA, LW, SW, BEQ, BNE, JAL, LUI, AUIPC.</div>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🗂️</div>
+          <div class="fc-title">32 Registers</div>
+          <div class="fc-desc">32×32-bit general-purpose registers; R0 hardwired to zero per RISC-V spec.</div>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🧪</div>
+          <div class="fc-title">Verified in Vivado</div>
+          <div class="fc-desc">Self-checking testbenches covering forwarding, stalls, branches, and arithmetic.</div>
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:24px;">
+        <strong>🎯 Design Philosophy:</strong> Modelled after the classic 5-stage RISC pipeline, simplified to 4 stages by merging MEM and WB. This reduces hardware complexity while retaining pipelining throughput benefits. Implemented entirely at RTL level in Verilog HDL.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S2: PIPELINE ARCHITECTURE -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <span class="section-icon">🏗️</span>
+      <h2>2. Pipeline Architecture</h2>
+    </div>
+    <div class="section-body">
+      <p>The processor is organised as four sequential pipeline stages, each separated by pipeline registers that carry state from one clock edge to the next.</p>
+
+      <!-- Full pipeline SVG -->
+      <div class="pipeline-diagram" style="margin-top:24px;">
+        <svg viewBox="0 0 1000 340" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:640px;">
+          <defs>
+            <linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1e3a5f"/>
+              <stop offset="100%" stop-color="#172d4a"/>
+            </linearGradient>
+            <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1e4038"/>
+              <stop offset="100%" stop-color="#152e29"/>
+            </linearGradient>
+            <linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b2f6e"/>
+              <stop offset="100%" stop-color="#2a224f"/>
+            </linearGradient>
+            <linearGradient id="sg4" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#4a1f2e"/>
+              <stop offset="100%" stop-color="#3a1520"/>
+            </linearGradient>
+            <marker id="arr" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#60a5fa"/>
+            </marker>
+            <marker id="arr2" markerWidth="8" markerHeight="6" refX="6" refY="3" orient="auto">
+              <polygon points="0 0, 8 3, 0 6" fill="#f97316"/>
+            </marker>
+          </defs>
+          <!-- Background -->
+          <rect width="1000" height="340" fill="#0a0f1e" rx="12"/>
+
+          <!-- Clock strip -->
+          <text x="20" y="30" fill="#475569" font-size="11" font-family="JetBrains Mono">clk ────────────────────────────────────────────────────────────────────────────────────</text>
+
+          <!-- Stage boxes -->
+          <!-- IF -->
+          <rect x="30" y="50" width="175" height="220" rx="10" fill="url(#sg1)" stroke="#3b82f6" stroke-width="1.5"/>
+          <text x="117" y="80" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="700" font-family="Inter">Stage 1 — IF</text>
+          <text x="117" y="98" text-anchor="middle" fill="#60a5fa" font-size="10" font-family="Inter">Instruction Fetch</text>
+          <rect x="50" y="108" width="135" height="28" rx="5" fill="#162a42"/>
+          <text x="117" y="127" text-anchor="middle" fill="#93c5fd" font-size="11" font-family="JetBrains Mono">pc_register</text>
+          <rect x="50" y="142" width="135" height="28" rx="5" fill="#162a42"/>
+          <text x="117" y="161" text-anchor="middle" fill="#93c5fd" font-size="11" font-family="JetBrains Mono">instr_memory</text>
+          <rect x="50" y="176" width="135" height="28" rx="5" fill="#162a42"/>
+          <text x="117" y="195" text-anchor="middle" fill="#93c5fd" font-size="11" font-family="JetBrains Mono">PC+4 Adder</text>
+          <text x="117" y="238" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter">PC frozen on</text>
+          <text x="117" y="252" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter">load-use stall</text>
+
+          <!-- IF/ID reg -->
+          <rect x="215" y="100" width="28" height="130" rx="4" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="229" y="172" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="Inter" transform="rotate(-90,229,172)">IF / ID REG</text>
+
+          <!-- ID -->
+          <rect x="253" y="50" width="185" height="220" rx="10" fill="url(#sg2)" stroke="#10b981" stroke-width="1.5"/>
+          <text x="345" y="80" text-anchor="middle" fill="#6ee7b7" font-size="13" font-weight="700" font-family="Inter">Stage 2 — ID</text>
+          <text x="345" y="98" text-anchor="middle" fill="#6ee7b7" font-size="10" font-family="Inter">Decode &amp; Register Read</text>
+          <rect x="270" y="108" width="150" height="26" rx="5" fill="#112a22"/>
+          <text x="345" y="126" text-anchor="middle" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">control_unit</text>
+          <rect x="270" y="140" width="150" height="26" rx="5" fill="#112a22"/>
+          <text x="345" y="158" text-anchor="middle" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">register_file</text>
+          <rect x="270" y="172" width="150" height="26" rx="5" fill="#112a22"/>
+          <text x="345" y="190" text-anchor="middle" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">imm_gen</text>
+          <rect x="270" y="204" width="150" height="26" rx="5" fill="#112a22"/>
+          <text x="345" y="222" text-anchor="middle" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">hazard_detect</text>
+          <text x="345" y="255" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter">Stall / NOP bubble</text>
+
+          <!-- ID/EX reg -->
+          <rect x="448" y="100" width="28" height="130" rx="4" fill="#1e3a5f" stroke="#10b981" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="462" y="172" text-anchor="middle" fill="#10b981" font-size="9" font-family="Inter" transform="rotate(-90,462,172)">ID / EX REG</text>
+
+          <!-- EX -->
+          <rect x="486" y="50" width="185" height="220" rx="10" fill="url(#sg3)" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="578" y="80" text-anchor="middle" fill="#c4b5fd" font-size="13" font-weight="700" font-family="Inter">Stage 3 — EX</text>
+          <text x="578" y="98" text-anchor="middle" fill="#c4b5fd" font-size="10" font-family="Inter">Execute + Forwarding</text>
+          <rect x="502" y="108" width="152" height="26" rx="5" fill="#1f1650"/>
+          <text x="578" y="126" text-anchor="middle" fill="#c4b5fd" font-size="11" font-family="JetBrains Mono">forwarding_unit</text>
+          <rect x="502" y="140" width="152" height="26" rx="5" fill="#1f1650"/>
+          <text x="578" y="158" text-anchor="middle" fill="#c4b5fd" font-size="11" font-family="JetBrains Mono">alu_control</text>
+          <rect x="502" y="172" width="152" height="26" rx="5" fill="#1f1650"/>
+          <text x="578" y="190" text-anchor="middle" fill="#c4b5fd" font-size="11" font-family="JetBrains Mono">alu</text>
+          <rect x="502" y="204" width="152" height="26" rx="5" fill="#1f1650"/>
+          <text x="578" y="222" text-anchor="middle" fill="#c4b5fd" font-size="11" font-family="JetBrains Mono">branch target</text>
+          <text x="578" y="255" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter">Zero/Overflow flags</text>
+
+          <!-- EX/MEM reg -->
+          <rect x="681" y="100" width="28" height="130" rx="4" fill="#1e3a5f" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,2"/>
+          <text x="695" y="172" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="Inter" transform="rotate(-90,695,172)">EX/MEM REG</text>
+
+          <!-- MEM/WB -->
+          <rect x="719" y="50" width="250" height="220" rx="10" fill="url(#sg4)" stroke="#f97316" stroke-width="1.5"/>
+          <text x="844" y="80" text-anchor="middle" fill="#fdba74" font-size="13" font-weight="700" font-family="Inter">Stage 4 — MEM/WB</text>
+          <text x="844" y="98" text-anchor="middle" fill="#fdba74" font-size="10" font-family="Inter">Memory Access + Write Back</text>
+          <rect x="736" y="108" width="215" height="26" rx="5" fill="#2a1218"/>
+          <text x="844" y="126" text-anchor="middle" fill="#fdba74" font-size="11" font-family="JetBrains Mono">data_memory (LW/SW)</text>
+          <rect x="736" y="140" width="215" height="26" rx="5" fill="#2a1218"/>
+          <text x="844" y="158" text-anchor="middle" fill="#fdba74" font-size="11" font-family="JetBrains Mono">branch_decision</text>
+          <rect x="736" y="172" width="215" height="26" rx="5" fill="#2a1218"/>
+          <text x="844" y="190" text-anchor="middle" fill="#fdba74" font-size="11" font-family="JetBrains Mono">wb_mux (ALU/MEM)</text>
+          <rect x="736" y="204" width="215" height="26" rx="5" fill="#2a1218"/>
+          <text x="844" y="222" text-anchor="middle" fill="#fdba74" font-size="11" font-family="JetBrains Mono">reg_file writeback</text>
+
+          <!-- data flow arrows -->
+          <line x1="205" y1="165" x2="215" y2="165" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr)"/>
+          <line x1="243" y1="165" x2="253" y2="165" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr)"/>
+          <line x1="438" y1="165" x2="448" y2="165" stroke="#10b981" stroke-width="2" marker-end="url(#arr)"/>
+          <line x1="476" y1="165" x2="486" y2="165" stroke="#10b981" stroke-width="2" marker-end="url(#arr)"/>
+          <line x1="671" y1="165" x2="681" y2="165" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+          <line x1="709" y1="165" x2="719" y2="165" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+
+          <!-- forwarding back arrows -->
+          <path d="M 800 290 Q 578 310 578 240" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr2)"/>
+          <text x="680" y="315" text-anchor="middle" fill="#f97316" font-size="10" font-family="Inter">MEM→EX Forwarding</text>
+          <path d="M 715 285 Q 620 305 620 240" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr2)"/>
+          <text x="590" y="305" text-anchor="middle" fill="#fbbf24" font-size="10" font-family="Inter">EX→EX Fwd</text>
+
+          <!-- WB → RegFile back arrow -->
+          <path d="M 969 160 Q 980 160 980 50 Q 980 30 344 30 Q 344 50 344 50" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,3"/>
+          <text x="660" y="24" fill="#ef4444" font-size="10" font-family="Inter">Write Back to Register File</text>
+
+          <!-- Legend -->
+          <rect x="30" y="285" width="180" height="45" rx="6" fill="#0d1117"/>
+          <text x="42" y="303" fill="#60a5fa" font-size="10" font-family="Inter">━━  Data path</text>
+          <text x="42" y="318" fill="#f97316" font-size="10" font-family="Inter">╌╌  Forwarding path</text>
+          <text x="42" y="333" fill="#ef4444" font-size="10" font-family="Inter">╌╌  Write-back path</text>
+        </svg>
+      </div>
+
+      <!-- Stage descriptions -->
+      <div class="two-col" style="margin-top:28px;">
+        <div>
+          <h3 style="color:#3b82f6; margin-bottom:10px;">🔵 IF — Instruction Fetch</h3>
+          <p style="font-size:13.5px;">Reads instruction from ROM at the current <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px;">PC</code>. Computes PC+4. On branch taken, PC is redirected and IF/ID is flushed. PC is frozen (held) during a load-use stall.</p>
+          <div class="code-block" style="margin-top:10px;">
+<span class="cm">// PC next logic</span>
+pc_next = branch_taken
+  ? branch_target
+  : pc + 4;
+          </div>
+        </div>
+        <div>
+          <h3 style="color:#10b981; margin-bottom:10px;">🟢 ID — Instruction Decode</h3>
+          <p style="font-size:13.5px;">Simultaneously decodes the opcode (control unit), reads two source registers, sign-extends the immediate. The hazard detection unit checks for load-use conflicts and issues stalls.</p>
+          <div class="code-block" style="margin-top:10px;">
+<span class="cm">// Hazard detection condition</span>
+<span class="kw">if</span> (id_ex_mem_read &&
+  (id_ex_rd == if_id_rs1 ||
+   id_ex_rd == if_id_rs2))
+  → stall + NOP bubble
+          </div>
+        </div>
+        <div>
+          <h3 style="color:#8b5cf6; margin-bottom:10px;">🟣 EX — Execute</h3>
+          <p style="font-size:13.5px;">Forwarding unit selects correct ALU operands (EX/MEM or MEM/WB registers). ALU control decodes funct3/funct7 to a 4-bit operation code. Branch target computed as PC + imm.</p>
+          <div class="code-block" style="margin-top:10px;">
+<span class="cm">// Forwarding MUX A</span>
+forward_a = 2'b10 → EX/MEM result
+forward_a = 2'b01 → MEM/WB result
+forward_a = 2'b00 → register file
+          </div>
+        </div>
+        <div>
+          <h3 style="color:#f97316; margin-bottom:10px;">🟠 MEM/WB — Memory + Write Back</h3>
+          <p style="font-size:13.5px;">LW reads from data memory; SW writes. Branch decision made here — if taken, flushes IF/ID. Write-back MUX selects between ALU result and memory read data to write to the register file.</p>
+          <div class="code-block" style="margin-top:10px;">
+<span class="cm">// Write-back MUX</span>
+wb_data = mem_to_reg
+  ? mem_read_data
+  : alu_result;
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S3: MODULE HIERARCHY -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <span class="section-icon">🧩</span>
+      <h2>3. Module Hierarchy &amp; RTL Design</h2>
+    </div>
+    <div class="section-body">
+      <div class="two-col">
+        <div>
+          <p>The processor is implemented as a hierarchical RTL design with <strong>14 sub-modules</strong> instantiated in the top-level <code style="background:#f1f5f9;padding:2px 5px;border-radius:3px;">risc_processor.v</code>.</p>
+          <div class="code-block" style="margin-top:14px;">
+risc_processor (top)
+├── <span class="nm">pc_register</span>        <span class="cm">// PC reg + enable</span>
+├── <span class="nm">instruction_memory</span> <span class="cm">// ROM (256 words)</span>
+├── <span class="nm">if_id_reg</span>          <span class="cm">// Stage 1→2 buffer</span>
+├── <span class="nm">register_file</span>      <span class="cm">// 32×32-bit RF</span>
+├── <span class="nm">control_unit</span>       <span class="cm">// Opcode decoder</span>
+├── <span class="nm">imm_gen</span>            <span class="cm">// I/S/B/U/J imm</span>
+├── <span class="nm">hazard_detection</span>   <span class="cm">// Load-use stall</span>
+├── <span class="nm">id_ex_reg</span>          <span class="cm">// Stage 2→3 buffer</span>
+├── <span class="nm">forwarding_unit</span>    <span class="cm">// EX/MEM hazard</span>
+├── <span class="nm">alu_control</span>        <span class="cm">// 4-bit ctrl decode</span>
+├── <span class="nm">alu</span>                <span class="cm">// 10-op ALU</span>
+├── <span class="nm">ex_mem_reg</span>         <span class="cm">// Stage 3→4 buffer</span>
+├── <span class="nm">data_memory</span>        <span class="cm">// RAM (256 words)</span>
+├── <span class="nm">mem_wb_reg</span>         <span class="cm">// Stage 4 buffer</span>
+└── <span class="cm">(WB mux — combinational)</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:14px; color:var(--gray800);">File Structure</h3>
+          <table class="data-table">
+            <thead><tr><th>File</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>risc_processor.v</code></td><td>Top-level integration</td></tr>
+              <tr><td><code>alu.v</code></td><td>10-operation ALU</td></tr>
+              <tr><td><code>alu_control.v</code></td><td>funct3/7 decoder</td></tr>
+              <tr><td><code>control_unit.v</code></td><td>Main control FSM</td></tr>
+              <tr><td><code>forwarding_unit.v</code></td><td>EX/MEM fwd logic</td></tr>
+              <tr><td><code>hazard_detection.v</code></td><td>Load-use stall</td></tr>
+              <tr><td><code>pipeline_regs.v</code></td><td>All 4 stage regs</td></tr>
+              <tr><td><code>imm_gen.v</code></td><td>Sign-extend all formats</td></tr>
+              <tr><td><code>register_file.v</code></td><td>32×32-bit RF</td></tr>
+              <tr><td><code>data_memory.v</code></td><td>Data RAM</td></tr>
+              <tr><td><code>instruction_memory.v</code></td><td>Instruction ROM</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S4: HAZARD HANDLING -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <span class="section-icon">⚠️</span>
+      <h2>4. Hazard Handling Mechanisms</h2>
+    </div>
+    <div class="section-body">
+      <table class="data-table">
+        <thead>
+          <tr><th>Hazard Type</th><th>Detection Mechanism</th><th>Resolution</th><th>CPI Penalty</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>EX–EX Data</strong></td><td>Forwarding unit checks EX/MEM.rd == EX.rs</td><td>Forward EX/MEM ALU result to ALU input</td><td><span class="badge-pass">0 cycles</span></td></tr>
+          <tr><td><strong>MEM–EX Data</strong></td><td>Forwarding unit checks MEM/WB.rd == EX.rs</td><td>Forward MEM/WB write-data to ALU input</td><td><span class="badge-pass">0 cycles</span></td></tr>
+          <tr><td><strong>Load-Use Stall</strong></td><td>Hazard unit: LW in EX, dependent in ID</td><td>Freeze PC + IF/ID; inject NOP into ID/EX</td><td><span class="badge-warn">1 cycle</span></td></tr>
+          <tr><td><strong>Branch (Control)</strong></td><td>Branch resolved in MEM/WB stage</td><td>Flush IF/ID on taken branch</td><td><span class="badge-warn">1 cycle</span></td></tr>
+        </tbody>
+      </table>
+
+      <!-- Hazard timing diagram -->
+      <div class="hazard-box">
+        <div style="color:#94a3b8; font-family:'JetBrains Mono',monospace; font-size:12px; margin-bottom:16px; letter-spacing:1px;">▶ HAZARD TIMING DIAGRAMS</div>
+
+        <!-- EX-EX Forwarding -->
+        <div style="margin-bottom:24px;">
+          <div style="color:#60a5fa; font-size:11px; font-weight:700; margin-bottom:10px; letter-spacing:1px;">① EX–EX FORWARDING (zero penalty)</div>
+          <svg viewBox="0 0 800 90" style="width:100%;min-width:400px;">
+            <defs>
+              <marker id="fw1" markerWidth="7" markerHeight="5" refX="5" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#f97316"/>
+              </marker>
+            </defs>
+            <!-- cycle labels -->
+            <text x="200" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">Cycle 1</text>
+            <text x="320" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">Cycle 2</text>
+            <text x="440" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">Cycle 3</text>
+            <text x="560" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">Cycle 4</text>
+            <text x="680" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">Cycle 5</text>
+            <!-- instr 1: ADD x3,x1,x2 -->
+            <text x="60" y="38" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">ADD x3,x1,x2</text>
+            <rect x="160" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="200" y="40" text-anchor="middle" fill="#60a5fa" font-size="10" font-family="JetBrains Mono">IF</text>
+            <rect x="280" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="320" y="40" text-anchor="middle" fill="#60a5fa" font-size="10" font-family="JetBrains Mono">ID</text>
+            <rect x="400" y="25" width="80" height="22" rx="4" fill="#3b2f6e" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="440" y="40" text-anchor="middle" fill="#c4b5fd" font-size="10" font-family="JetBrains Mono">EX★</text>
+            <rect x="520" y="25" width="80" height="22" rx="4" fill="#1a1212" stroke="#f97316" stroke-width="1"/>
+            <text x="560" y="40" text-anchor="middle" fill="#fdba74" font-size="10" font-family="JetBrains Mono">M/WB</text>
+            <!-- instr 2: ADD x5,x3,x4 -->
+            <text x="60" y="70" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">ADD x5,x3,x4</text>
+            <rect x="280" y="57" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="320" y="72" text-anchor="middle" fill="#60a5fa" font-size="10" font-family="JetBrains Mono">IF</text>
+            <rect x="400" y="57" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="440" y="72" text-anchor="middle" fill="#60a5fa" font-size="10" font-family="JetBrains Mono">ID</text>
+            <rect x="520" y="57" width="80" height="22" rx="4" fill="#3b2f6e" stroke="#f97316" stroke-width="1.5"/>
+            <text x="560" y="72" text-anchor="middle" fill="#fdba74" font-size="10" font-family="JetBrains Mono">EX←fwd</text>
+            <!-- forwarding arrow -->
+            <path d="M 480 36 Q 510 50 520 65" fill="none" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#fw1)"/>
+            <text x="505" y="52" fill="#f97316" font-size="9" font-family="Inter">forward</text>
+          </svg>
+        </div>
+
+        <!-- Load-Use Stall -->
+        <div style="margin-bottom:24px;">
+          <div style="color:#fbbf24; font-size:11px; font-weight:700; margin-bottom:10px; letter-spacing:1px;">② LOAD-USE STALL (1-cycle penalty)</div>
+          <svg viewBox="0 0 900 110" style="width:100%;min-width:460px;">
+            <defs>
+              <marker id="fw2" markerWidth="7" markerHeight="5" refX="5" refY="2.5" orient="auto">
+                <polygon points="0 0, 7 2.5, 0 5" fill="#ef4444"/>
+              </marker>
+            </defs>
+            <!-- cycles -->
+            <text x="200" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C1</text>
+            <text x="320" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C2</text>
+            <text x="440" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C3</text>
+            <text x="560" y="16" text-anchor="middle" fill="#f87171" font-size="10" font-family="JetBrains Mono" font-weight="700">C4-STALL</text>
+            <text x="680" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C5</text>
+            <text x="800" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C6</text>
+            <!-- LW -->
+            <text x="55" y="38" fill="#fbbf24" font-size="11" font-family="JetBrains Mono">LW x3, 0(x1)</text>
+            <rect x="160" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="200" y="40" text-anchor="middle" fill="#60a5fa" font-size="10">IF</text>
+            <rect x="280" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="320" y="40" text-anchor="middle" fill="#60a5fa" font-size="10">ID</text>
+            <rect x="400" y="25" width="80" height="22" rx="4" fill="#3b2f6e" stroke="#a78bfa" stroke-width="1"/>
+            <text x="440" y="40" text-anchor="middle" fill="#c4b5fd" font-size="10">EX</text>
+            <rect x="520" y="25" width="80" height="22" rx="4" fill="#2a1218" stroke="#f97316" stroke-width="1"/>
+            <text x="560" y="40" text-anchor="middle" fill="#fdba74" font-size="10">M/WB</text>
+            <!-- ADD after LW -->
+            <text x="55" y="70" fill="#fbbf24" font-size="11" font-family="JetBrains Mono">ADD x4,x3,x5</text>
+            <rect x="280" y="57" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="320" y="72" text-anchor="middle" fill="#60a5fa" font-size="10">IF</text>
+            <rect x="400" y="57" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="440" y="72" text-anchor="middle" fill="#60a5fa" font-size="10">ID</text>
+            <!-- NOP bubble -->
+            <rect x="520" y="57" width="80" height="22" rx="4" fill="#1a1a1a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2"/>
+            <text x="560" y="72" text-anchor="middle" fill="#ef4444" font-size="10">NOP</text>
+            <rect x="640" y="57" width="80" height="22" rx="4" fill="#3b2f6e" stroke="#a78bfa" stroke-width="1"/>
+            <text x="680" y="72" text-anchor="middle" fill="#c4b5fd" font-size="10">EX</text>
+            <rect x="760" y="57" width="80" height="22" rx="4" fill="#2a1218" stroke="#f97316" stroke-width="1"/>
+            <text x="800" y="72" text-anchor="middle" fill="#fdba74" font-size="10">M/WB</text>
+            <!-- stall indicator -->
+            <rect x="515" y="22" width="90" height="62" rx="4" fill="none" stroke="#ef4444" stroke-width="1" stroke-dasharray="3,2"/>
+            <text x="560" y="98" text-anchor="middle" fill="#ef4444" font-size="9" font-family="Inter">PC + IF/ID frozen</text>
+          </svg>
+        </div>
+
+        <!-- Branch Flush -->
+        <div>
+          <div style="color:#f87171; font-size:11px; font-weight:700; margin-bottom:10px; letter-spacing:1px;">③ BRANCH FLUSH (1-cycle flush on taken)</div>
+          <svg viewBox="0 0 900 110" style="width:100%;min-width:460px;">
+            <!-- cycles -->
+            <text x="200" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C1</text>
+            <text x="320" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C2</text>
+            <text x="440" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C3</text>
+            <text x="560" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C4 [M/WB]</text>
+            <text x="680" y="16" text-anchor="middle" fill="#475569" font-size="10" font-family="JetBrains Mono">C5</text>
+            <!-- BEQ -->
+            <text x="60" y="38" fill="#f87171" font-size="11" font-family="JetBrains Mono">BEQ x1,x2,lbl</text>
+            <rect x="160" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="200" y="40" text-anchor="middle" fill="#60a5fa" font-size="10">IF</text>
+            <rect x="280" y="25" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="320" y="40" text-anchor="middle" fill="#60a5fa" font-size="10">ID</text>
+            <rect x="400" y="25" width="80" height="22" rx="4" fill="#3b2f6e" stroke="#a78bfa" stroke-width="1"/>
+            <text x="440" y="40" text-anchor="middle" fill="#c4b5fd" font-size="10">EX</text>
+            <rect x="520" y="25" width="80" height="22" rx="4" fill="#2a1218" stroke="#f97316" stroke-width="1.5"/>
+            <text x="560" y="40" text-anchor="middle" fill="#fdba74" font-size="10">M/WB★</text>
+            <!-- next instr (wrong fetch) -->
+            <text x="60" y="70" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">WRONG FETCH</text>
+            <rect x="400" y="57" width="80" height="22" rx="4" fill="#1a1a1a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="4,2"/>
+            <text x="440" y="72" text-anchor="middle" fill="#ef4444" font-size="10">FLUSH</text>
+            <!-- target instr -->
+            <text x="60" y="96" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">TARGET INSTR</text>
+            <rect x="640" y="82" width="80" height="22" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+            <text x="680" y="97" text-anchor="middle" fill="#60a5fa" font-size="10">IF ✓</text>
+            <!-- branch resolved note -->
+            <text x="560" y="58" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="Inter">branch resolved here</text>
+            <text x="560" y="68" text-anchor="middle" fill="#fbbf24" font-size="9" font-family="Inter">→ flush IF/ID</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S5: WAVEFORMS -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <span class="section-icon">📈</span>
+      <h2>5. Waveform Analysis &amp; Simulation Results</h2>
+    </div>
+    <div class="section-body">
+      <p>The following waveforms represent the expected simulation output from Xilinx Vivado behavioral simulation of the full pipeline testbench (<code style="background:#f1f5f9;padding:2px 5px;border-radius:3px;">tb_risc_processor.v</code>).</p>
+
+      <!-- Waveform 1: Basic Arithmetic -->
+      <div class="waveform-container">
+        <div class="waveform-title">▶ WAVEFORM 1: Basic Pipeline Operation — ADD / SUB / ADDI Sequence (0–80 ns)</div>
+        <svg viewBox="0 0 900 320" style="width:100%;min-width:500px;">
+          <!-- Background grid -->
+          <defs>
+            <pattern id="grid" width="80" height="20" patternUnits="userSpaceOnUse">
+              <line x1="80" y1="0" x2="80" y2="320" stroke="#1e293b" stroke-width="0.5"/>
+            </pattern>
+          </defs>
+          <rect width="900" height="320" fill="#060d1a"/>
+          <rect width="900" height="320" fill="url(#grid)" opacity="0.6"/>
+
+          <!-- Time axis -->
+          <line x1="140" y1="295" x2="880" y2="295" stroke="#334155" stroke-width="1"/>
+          <text x="140" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">0ns</text>
+          <text x="220" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">10ns</text>
+          <text x="300" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">20ns</text>
+          <text x="380" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">30ns</text>
+          <text x="460" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">40ns</text>
+          <text x="540" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">50ns</text>
+          <text x="620" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">60ns</text>
+          <text x="700" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">70ns</text>
+          <text x="780" y="312" fill="#64748b" font-size="10" font-family="JetBrains Mono">80ns</text>
+
+          <!-- Signal labels -->
+          <text x="5"  y="26"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">clk</text>
+          <text x="5"  y="56"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">rst</text>
+          <text x="5"  y="86"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">pc[31:0]</text>
+          <text x="5"  y="126" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">instr</text>
+          <text x="5"  y="166" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">alu_res</text>
+          <text x="5"  y="206" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">reg_wr</text>
+          <text x="5"  y="236" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">wb_data</text>
+          <text x="5"  y="266" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">wb_rd</text>
+
+          <!-- clk waveform -->
+          <polyline fill="none" stroke="#22d3ee" stroke-width="1.5" points="
+            140,30 140,18 180,18 180,30 220,30 220,18 260,18 260,30
+            300,30 300,18 340,18 340,30 380,30 380,18 420,18 420,30
+            460,30 460,18 500,18 500,30 540,30 540,18 580,18 580,30
+            620,30 620,18 660,18 660,30 700,30 700,18 740,18 740,30
+            780,30 780,18 820,18 820,30 860,30 860,18 880,18 880,30
+          "/>
+
+          <!-- rst waveform (high for 5ns, then low) -->
+          <polyline fill="none" stroke="#f87171" stroke-width="1.5" points="140,46 180,46 180,58 880,58"/>
+
+          <!-- pc: step up every 10ns (starts at 5ns, each clock edge) -->
+          <!-- pc = 0 initially, then 4,8,12... -->
+          <polyline fill="none" stroke="#60a5fa" stroke-width="1.5" points="
+            140,92 180,92 180,78 260,78 260,82 340,82 340,84 420,84 420,85 500,85
+            500,86 580,86 580,87 660,87 660,88 740,88 740,89 820,89 820,90 880,90"/>
+          <text x="185" y="76" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x00</text>
+          <text x="265" y="80" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x04</text>
+          <text x="345" y="82" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x08</text>
+          <text x="425" y="84" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x0C</text>
+          <text x="505" y="85" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x10</text>
+          <text x="585" y="86" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x14</text>
+          <text x="665" y="87" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x18</text>
+
+          <!-- instruction bus (changes on rising edge with pipeline delay) -->
+          <rect x="140" y="112" width="80" height="22" rx="0" fill="none" stroke="#475569" stroke-width="0"/>
+          <!-- bus transitions shown as crossing lines -->
+          <line x1="140" y1="112" x2="140" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="220" y1="112" x2="220" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="300" y1="112" x2="300" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="380" y1="112" x2="380" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="460" y1="112" x2="460" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="540" y1="112" x2="540" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="620" y1="112" x2="620" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="700" y1="112" x2="700" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="780" y1="112" x2="780" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="860" y1="112" x2="860" y2="134" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="140" y1="112" x2="880" y2="112" stroke="#a78bfa" stroke-width="1.5"/>
+          <line x1="140" y1="134" x2="880" y2="134" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="155" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">ADDI</text>
+          <text x="235" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">ADDI</text>
+          <text x="315" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">ADD</text>
+          <text x="395" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">ADD</text>
+          <text x="475" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">SUB</text>
+          <text x="555" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">AND</text>
+          <text x="635" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">OR</text>
+          <text x="715" y="127" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">XOR</text>
+
+          <!-- alu_result bus (changes after execute stage delay ~30ns) -->
+          <line x1="140" y1="152" x2="140" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="380" y1="152" x2="380" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="460" y1="152" x2="460" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="540" y1="152" x2="540" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="620" y1="152" x2="620" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="700" y1="152" x2="700" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="780" y1="152" x2="780" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="860" y1="152" x2="860" y2="174" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="140" y1="152" x2="880" y2="152" stroke="#fbbf24" stroke-width="1.5"/>
+          <line x1="140" y1="174" x2="880" y2="174" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="155" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">xxxx</text>
+          <text x="395" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x05</text>
+          <text x="475" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x03</text>
+          <text x="555" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x02</text>
+          <text x="635" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x07</text>
+          <text x="715" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x07</text>
+          <text x="795" y="166" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">0x00</text>
+
+          <!-- reg_write (goes high after pipeline fills ~40ns) -->
+          <polyline fill="none" stroke="#4ade80" stroke-width="1.5" points="
+            140,218 460,218 460,196 620,196 620,218 640,218 640,196 700,196 700,218
+            720,218 720,196 780,196 780,218 800,218 800,196 860,196 860,218 880,218"/>
+
+          <!-- wb_data bus -->
+          <line x1="140" y1="224" x2="140" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="460" y1="224" x2="460" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="540" y1="224" x2="540" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="620" y1="224" x2="620" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="700" y1="224" x2="700" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="780" y1="224" x2="780" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="860" y1="224" x2="860" y2="244" stroke="#34d399" stroke-width="1"/>
+          <line x1="140" y1="224" x2="880" y2="224" stroke="#34d399" stroke-width="1.5"/>
+          <line x1="140" y1="244" x2="880" y2="244" stroke="#34d399" stroke-width="1.5"/>
+          <text x="155" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">----</text>
+          <text x="475" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">0x05</text>
+          <text x="555" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">0x03</text>
+          <text x="635" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">0x02</text>
+          <text x="715" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">0x07</text>
+          <text x="795" y="238" fill="#34d399" font-size="9" font-family="JetBrains Mono">0x07</text>
+
+          <!-- wb_rd bus -->
+          <line x1="140" y1="254" x2="140" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="460" y1="254" x2="460" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="540" y1="254" x2="540" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="620" y1="254" x2="620" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="700" y1="254" x2="700" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="780" y1="254" x2="780" y2="278" stroke="#86efac" stroke-width="1"/>
+          <line x1="140" y1="254" x2="880" y2="254" stroke="#86efac" stroke-width="1.5"/>
+          <line x1="140" y1="278" x2="880" y2="278" stroke="#86efac" stroke-width="1.5"/>
+          <text x="155" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">--</text>
+          <text x="475" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">x1</text>
+          <text x="555" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">x2</text>
+          <text x="635" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">x3</text>
+          <text x="715" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">x4</text>
+          <text x="795" y="270" fill="#86efac" font-size="9" font-family="JetBrains Mono">x5</text>
+
+          <!-- pipeline fill annotation -->
+          <rect x="140" y="4" width="220" height="8" rx="2" fill="#1e293b"/>
+          <rect x="140" y="4" width="220" height="8" rx="2" fill="#3b82f6" opacity="0.3"/>
+          <text x="250" y="11" text-anchor="middle" fill="#60a5fa" font-size="8" font-family="Inter">Pipeline filling (latency = 3 cycles)</text>
+
+          <!-- Dividing lines between signal groups -->
+          <line x1="0" y1="38"  x2="900" y2="38"  stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="68"  x2="900" y2="68"  stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="100" x2="900" y2="100" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="140" x2="900" y2="140" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="180" x2="900" y2="180" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="210" x2="900" y2="210" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="250" x2="900" y2="250" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="284" x2="900" y2="284" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="138" y1="0" x2="138" y2="290" stroke="#1e293b" stroke-width="1"/>
+        </svg>
+      </div>
+
+      <!-- Waveform 2: Forwarding -->
+      <div class="waveform-container" style="margin-top:20px;">
+        <div class="waveform-title">▶ WAVEFORM 2: Data Forwarding — EX–EX and MEM–EX (40–120 ns)</div>
+        <svg viewBox="0 0 900 200" style="width:100%;min-width:500px;">
+          <rect width="900" height="200" fill="#060d1a"/>
+          <rect width="900" height="200" fill="url(#grid)" opacity="0.6"/>
+
+          <text x="5"  y="26"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">clk</text>
+          <text x="5"  y="60"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">fwd_a</text>
+          <text x="5"  y="96"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">fwd_b</text>
+          <text x="5"  y="132" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">alu_opA</text>
+          <text x="5"  y="168" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">alu_opB</text>
+
+          <!-- clk -->
+          <polyline fill="none" stroke="#22d3ee" stroke-width="1.5" points="
+            140,30 140,18 180,18 180,30 220,30 220,18 260,18 260,30
+            300,30 300,18 340,18 340,30 380,30 380,18 420,18 420,30
+            460,30 460,18 500,18 500,30 540,30 540,18 580,18 580,30
+            620,30 620,18 660,18 660,30 700,30 700,18 740,18 740,30
+            780,30 780,18 820,18 820,30 860,30 860,18 880,18 880,30"/>
+
+          <!-- fwd_a: 00 → 10 (EX-EX) → 01 (MEM-EX) → 00 -->
+          <line x1="140" y1="48" x2="140" y2="68" stroke="#f97316" stroke-width="1"/>
+          <line x1="300" y1="48" x2="300" y2="68" stroke="#f97316" stroke-width="1"/>
+          <line x1="380" y1="48" x2="380" y2="68" stroke="#f97316" stroke-width="1"/>
+          <line x1="460" y1="48" x2="460" y2="68" stroke="#f97316" stroke-width="1"/>
+          <line x1="620" y1="48" x2="620" y2="68" stroke="#f97316" stroke-width="1"/>
+          <line x1="140" y1="48" x2="880" y2="48" stroke="#f97316" stroke-width="1.5"/>
+          <line x1="140" y1="68" x2="880" y2="68" stroke="#f97316" stroke-width="1.5"/>
+          <text x="210" y="62" fill="#f97316" font-size="9" font-family="JetBrains Mono">2'b00</text>
+          <text x="308" y="62" fill="#f97316" font-size="9" font-family="JetBrains Mono">2'b10 [EX-EX]</text>
+          <text x="468" y="62" fill="#f97316" font-size="9" font-family="JetBrains Mono">2'b01 [MEM-EX]</text>
+          <text x="630" y="62" fill="#f97316" font-size="9" font-family="JetBrains Mono">2'b00</text>
+
+          <!-- fwd_b similar -->
+          <line x1="140" y1="84" x2="140" y2="104" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="380" y1="84" x2="380" y2="104" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="540" y1="84" x2="540" y2="104" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="620" y1="84" x2="620" y2="104" stroke="#fbbf24" stroke-width="1"/>
+          <line x1="140" y1="84" x2="880" y2="84" stroke="#fbbf24" stroke-width="1.5"/>
+          <line x1="140" y1="104" x2="880" y2="104" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="210" y="98" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">2'b00</text>
+          <text x="390" y="98" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">2'b10</text>
+          <text x="548" y="98" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">2'b00</text>
+          <text x="630" y="98" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">2'b00</text>
+
+          <!-- alu_opA (changes based on forwarding) -->
+          <line x1="140" y1="120" x2="140" y2="144" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="300" y1="120" x2="300" y2="144" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="380" y1="120" x2="380" y2="144" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="460" y1="120" x2="460" y2="144" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="620" y1="120" x2="620" y2="144" stroke="#a78bfa" stroke-width="1"/>
+          <line x1="140" y1="120" x2="880" y2="120" stroke="#a78bfa" stroke-width="1.5"/>
+          <line x1="140" y1="144" x2="880" y2="144" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="200" y="136" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">reg_data</text>
+          <text x="310" y="136" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">fwd:EX/MEM</text>
+          <text x="470" y="136" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">fwd:MEM/WB</text>
+          <text x="630" y="136" fill="#c4b5fd" font-size="9" font-family="JetBrains Mono">reg_data</text>
+
+          <!-- alu_opB -->
+          <line x1="140" y1="156" x2="140" y2="180" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="380" y1="156" x2="380" y2="180" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="540" y1="156" x2="540" y2="180" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="140" y1="156" x2="880" y2="156" stroke="#60a5fa" stroke-width="1.5"/>
+          <line x1="140" y1="180" x2="880" y2="180" stroke="#60a5fa" stroke-width="1.5"/>
+          <text x="200" y="172" fill="#93c5fd" font-size="9" font-family="JetBrains Mono">reg/imm</text>
+          <text x="395" y="172" fill="#93c5fd" font-size="9" font-family="JetBrains Mono">fwd:EX/MEM</text>
+          <text x="550" y="172" fill="#93c5fd" font-size="9" font-family="JetBrains Mono">reg/imm</text>
+
+          <!-- separators -->
+          <line x1="138" y1="0" x2="138" y2="200" stroke="#1e293b" stroke-width="1"/>
+          <line x1="0" y1="38" x2="900" y2="38" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="74" x2="900" y2="74" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="110" x2="900" y2="110" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="148" x2="900" y2="148" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="186" x2="900" y2="186" stroke="#1e293b" stroke-width="0.5"/>
+
+          <!-- annotation box -->
+          <rect x="296" y="4" width="170" height="12" rx="3" fill="#1c1020"/>
+          <rect x="456" y="4" width="170" height="12" rx="3" fill="#0f1a20"/>
+          <text x="381" y="13" text-anchor="middle" fill="#f97316" font-size="8" font-family="Inter">EX→EX forward active</text>
+          <text x="541" y="13" text-anchor="middle" fill="#60a5fa" font-size="8" font-family="Inter">MEM→EX forward active</text>
+
+          <!-- time ticks -->
+          <text x="140" y="196" fill="#475569" font-size="8" font-family="JetBrains Mono">40ns</text>
+          <text x="300" y="196" fill="#475569" font-size="8" font-family="JetBrains Mono">60ns</text>
+          <text x="460" y="196" fill="#475569" font-size="8" font-family="JetBrains Mono">80ns</text>
+          <text x="620" y="196" fill="#475569" font-size="8" font-family="JetBrains Mono">100ns</text>
+          <text x="780" y="196" fill="#475569" font-size="8" font-family="JetBrains Mono">120ns</text>
+        </svg>
+      </div>
+
+      <!-- Waveform 3: Branch + Stall -->
+      <div class="waveform-container" style="margin-top:20px;">
+        <div class="waveform-title">▶ WAVEFORM 3: Load-Use Stall + BEQ Branch Flush (120–200 ns)</div>
+        <svg viewBox="0 0 900 200" style="width:100%;min-width:500px;">
+          <rect width="900" height="200" fill="#060d1a"/>
+          <rect width="900" height="200" fill="url(#grid)" opacity="0.6"/>
+
+          <text x="5"  y="26"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">clk</text>
+          <text x="5"  y="58"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">pc_write</text>
+          <text x="5"  y="90"  fill="#94a3b8" font-size="10" font-family="JetBrains Mono">stall</text>
+          <text x="5"  y="122" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">branch_tkn</text>
+          <text x="5"  y="154" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">if_id_flush</text>
+          <text x="5"  y="186" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">pc[31:0]</text>
+
+          <!-- clk -->
+          <polyline fill="none" stroke="#22d3ee" stroke-width="1.5" points="
+            140,30 140,18 180,18 180,30 220,30 220,18 260,18 260,30
+            300,30 300,18 340,18 340,30 380,30 380,18 420,18 420,30
+            460,30 460,18 500,18 500,30 540,30 540,18 580,18 580,30
+            620,30 620,18 660,18 660,30 700,30 700,18 740,18 740,30
+            780,30 780,18 820,18 820,30 860,30 860,18 880,18 880,30"/>
+
+          <!-- pc_write: normally high, drops low on stall cycle -->
+          <polyline fill="none" stroke="#4ade80" stroke-width="1.5" points="
+            140,46 300,46 300,62 380,62 380,46 880,46"/>
+
+          <!-- stall: goes high during load-use -->
+          <polyline fill="none" stroke="#ef4444" stroke-width="1.5" points="
+            140,82 300,82 300,66 380,66 380,82 880,82"/>
+
+          <!-- branch_taken: pulses high once at ~540ns -->
+          <polyline fill="none" stroke="#f97316" stroke-width="1.5" points="
+            140,114 540,114 540,98 620,98 620,114 880,114"/>
+
+          <!-- if_id_flush: follows branch_taken -->
+          <polyline fill="none" stroke="#fbbf24" stroke-width="1.5" points="
+            140,146 540,146 540,130 620,130 620,146 880,146"/>
+
+          <!-- pc bus (stalls at 300, then jumps at 540) -->
+          <line x1="140" y1="174" x2="140" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="220" y1="174" x2="220" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="380" y1="174" x2="380" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="420" y1="174" x2="420" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="540" y1="174" x2="540" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="620" y1="174" x2="620" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="700" y1="174" x2="700" y2="194" stroke="#60a5fa" stroke-width="1"/>
+          <line x1="140" y1="174" x2="880" y2="174" stroke="#60a5fa" stroke-width="1.5"/>
+          <line x1="140" y1="194" x2="880" y2="194" stroke="#60a5fa" stroke-width="1.5"/>
+          <text x="155" y="188" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x1C</text>
+          <text x="237" y="188" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x20</text>
+          <text x="297" y="188" fill="#fbbf24" font-size="9" font-family="JetBrains Mono">STALL</text>
+          <text x="395" y="188" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x24</text>
+          <text x="435" y="188" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x28</text>
+          <text x="550" y="188" fill="#f97316" font-size="9" font-family="JetBrains Mono">0x40←jump</text>
+          <text x="635" y="188" fill="#60a5fa" font-size="9" font-family="JetBrains Mono">0x44</text>
+
+          <!-- annotations -->
+          <rect x="294" y="4" width="100" height="12" rx="3" fill="#1a0a0a"/>
+          <text x="344" y="13" text-anchor="middle" fill="#ef4444" font-size="8" font-family="Inter">LW→ADD stall</text>
+          <rect x="534" y="4" width="100" height="12" rx="3" fill="#1a1000"/>
+          <text x="584" y="13" text-anchor="middle" fill="#f97316" font-size="8" font-family="Inter">BEQ taken + flush</text>
+
+          <line x1="138" y1="0" x2="138" y2="200" stroke="#1e293b" stroke-width="1"/>
+          <line x1="0" y1="38" x2="900" y2="38" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="70" x2="900" y2="70" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="102" x2="900" y2="102" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="134" x2="900" y2="134" stroke="#1e293b" stroke-width="0.5"/>
+          <line x1="0" y1="166" x2="900" y2="166" stroke="#1e293b" stroke-width="0.5"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S6: INSTRUCTION SET -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <span class="section-icon">📚</span>
+      <h2>6. Instruction Set &amp; Encoding</h2>
+    </div>
+    <div class="section-body">
+      <table class="data-table">
+        <thead>
+          <tr><th>Instruction</th><th>Format</th><th>Opcode</th><th>funct3</th><th>Operation</th><th>Type</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="instr-chip">ADD</span></td><td>R</td><td><code>0110011</code></td><td><code>000</code></td><td>rd = rs1 + rs2</td><td><span class="badge-info">Arithmetic</span></td></tr>
+          <tr><td><span class="instr-chip">SUB</span></td><td>R</td><td><code>0110011</code></td><td><code>000</code></td><td>rd = rs1 − rs2</td><td><span class="badge-info">Arithmetic</span></td></tr>
+          <tr><td><span class="instr-chip">ADDI</span></td><td>I</td><td><code>0010011</code></td><td><code>000</code></td><td>rd = rs1 + imm</td><td><span class="badge-info">Arithmetic</span></td></tr>
+          <tr><td><span class="instr-chip">AND</span></td><td>R</td><td><code>0110011</code></td><td><code>111</code></td><td>rd = rs1 &amp; rs2</td><td><span class="badge-pass">Logic</span></td></tr>
+          <tr><td><span class="instr-chip">OR</span></td><td>R</td><td><code>0110011</code></td><td><code>110</code></td><td>rd = rs1 | rs2</td><td><span class="badge-pass">Logic</span></td></tr>
+          <tr><td><span class="instr-chip">XOR</span></td><td>R</td><td><code>0110011</code></td><td><code>100</code></td><td>rd = rs1 ^ rs2</td><td><span class="badge-pass">Logic</span></td></tr>
+          <tr><td><span class="instr-chip">SLT</span></td><td>R</td><td><code>0110011</code></td><td><code>010</code></td><td>rd = (rs1 &lt; rs2) ? 1 : 0</td><td><span class="badge-pass">Compare</span></td></tr>
+          <tr><td><span class="instr-chip">SLL</span></td><td>R</td><td><code>0110011</code></td><td><code>001</code></td><td>rd = rs1 &lt;&lt; rs2[4:0]</td><td><span class="badge-pass">Shift</span></td></tr>
+          <tr><td><span class="instr-chip">SRL / SRA</span></td><td>R</td><td><code>0110011</code></td><td><code>101</code></td><td>rd = rs1 &gt;&gt; rs2[4:0]</td><td><span class="badge-pass">Shift</span></td></tr>
+          <tr><td><span class="instr-chip">LW</span></td><td>I</td><td><code>0000011</code></td><td><code>010</code></td><td>rd = mem[rs1 + imm]</td><td><span class="badge-warn">Memory</span></td></tr>
+          <tr><td><span class="instr-chip">SW</span></td><td>S</td><td><code>0100011</code></td><td><code>010</code></td><td>mem[rs1 + imm] = rs2</td><td><span class="badge-warn">Memory</span></td></tr>
+          <tr><td><span class="instr-chip">BEQ</span></td><td>B</td><td><code>1100011</code></td><td><code>000</code></td><td>if rs1==rs2: PC += imm</td><td><span class="badge-warn">Branch</span></td></tr>
+          <tr><td><span class="instr-chip">BNE</span></td><td>B</td><td><code>1100011</code></td><td><code>001</code></td><td>if rs1≠rs2: PC += imm</td><td><span class="badge-warn">Branch</span></td></tr>
+          <tr><td><span class="instr-chip">JAL</span></td><td>J</td><td><code>1101111</code></td><td>—</td><td>rd = PC+4; PC += imm</td><td><span class="badge-warn">Jump</span></td></tr>
+          <tr><td><span class="instr-chip">LUI</span></td><td>U</td><td><code>0110111</code></td><td>—</td><td>rd = imm &lt;&lt; 12</td><td><span class="badge-info">Upper Imm</span></td></tr>
+          <tr><td><span class="instr-chip">AUIPC</span></td><td>U</td><td><code>0010111</code></td><td>—</td><td>rd = PC + (imm &lt;&lt; 12)</td><td><span class="badge-info">Upper Imm</span></td></tr>
+        </tbody>
+      </table>
+
+      <!-- Instruction format visual -->
+      <div style="margin-top:24px;">
+        <h3 style="font-size:14px; margin-bottom:12px; color:var(--gray600);">RISC-V Instruction Format (32-bit)</h3>
+        <svg viewBox="0 0 800 200" style="width:100%;max-width:800px;">
+          <rect width="800" height="200" fill="#f8fafc" rx="8"/>
+          <!-- R-type -->
+          <text x="10" y="30" fill="#1e293b" font-size="11" font-weight="700" font-family="Inter">R-type</text>
+          <rect x="80" y="16" width="80" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="120" y="31" text-anchor="middle" fill="#1e40af" font-size="10" font-family="JetBrains Mono">funct7[7]</text>
+          <rect x="162" y="16" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="192" y="31" text-anchor="middle" fill="#5b21b6" font-size="10" font-family="JetBrains Mono">rs2[5]</text>
+          <rect x="224" y="16" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="254" y="31" text-anchor="middle" fill="#5b21b6" font-size="10" font-family="JetBrains Mono">rs1[5]</text>
+          <rect x="286" y="16" width="50" height="22" rx="3" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+          <text x="311" y="31" text-anchor="middle" fill="#065f46" font-size="10" font-family="JetBrains Mono">fn3[3]</text>
+          <rect x="338" y="16" width="60" height="22" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+          <text x="368" y="31" text-anchor="middle" fill="#991b1b" font-size="10" font-family="JetBrains Mono">rd[5]</text>
+          <rect x="400" y="16" width="80" height="22" rx="3" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+          <text x="440" y="31" text-anchor="middle" fill="#92400e" font-size="10" font-family="JetBrains Mono">opcode[7]</text>
+
+          <!-- bit labels -->
+          <text x="120" y="50" text-anchor="middle" fill="#64748b" font-size="9">31:25</text>
+          <text x="192" y="50" text-anchor="middle" fill="#64748b" font-size="9">24:20</text>
+          <text x="254" y="50" text-anchor="middle" fill="#64748b" font-size="9">19:15</text>
+          <text x="311" y="50" text-anchor="middle" fill="#64748b" font-size="9">14:12</text>
+          <text x="368" y="50" text-anchor="middle" fill="#64748b" font-size="9">11:7</text>
+          <text x="440" y="50" text-anchor="middle" fill="#64748b" font-size="9">6:0</text>
+
+          <!-- I-type -->
+          <text x="10" y="84" fill="#1e293b" font-size="11" font-weight="700" font-family="Inter">I-type</text>
+          <rect x="80" y="70" width="144" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="152" y="85" text-anchor="middle" fill="#1e40af" font-size="10" font-family="JetBrains Mono">imm[11:0]</text>
+          <rect x="226" y="70" width="58" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="255" y="85" text-anchor="middle" fill="#5b21b6" font-size="10" font-family="JetBrains Mono">rs1[5]</text>
+          <rect x="286" y="70" width="50" height="22" rx="3" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+          <text x="311" y="85" text-anchor="middle" fill="#065f46" font-size="10" font-family="JetBrains Mono">fn3[3]</text>
+          <rect x="338" y="70" width="60" height="22" rx="3" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+          <text x="368" y="85" text-anchor="middle" fill="#991b1b" font-size="10" font-family="JetBrains Mono">rd[5]</text>
+          <rect x="400" y="70" width="80" height="22" rx="3" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+          <text x="440" y="85" text-anchor="middle" fill="#92400e" font-size="10" font-family="JetBrains Mono">opcode[7]</text>
+
+          <!-- S-type -->
+          <text x="10" y="130" fill="#1e293b" font-size="11" font-weight="700" font-family="Inter">S-type</text>
+          <rect x="80" y="116" width="80" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="120" y="131" text-anchor="middle" fill="#1e40af" font-size="10" font-family="JetBrains Mono">imm[11:5]</text>
+          <rect x="162" y="116" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="192" y="131" text-anchor="middle" fill="#5b21b6" font-size="10" font-family="JetBrains Mono">rs2[5]</text>
+          <rect x="224" y="116" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="254" y="131" text-anchor="middle" fill="#5b21b6" font-size="10" font-family="JetBrains Mono">rs1[5]</text>
+          <rect x="286" y="116" width="50" height="22" rx="3" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+          <text x="311" y="131" text-anchor="middle" fill="#065f46" font-size="10" font-family="JetBrains Mono">fn3[3]</text>
+          <rect x="338" y="116" width="60" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="368" y="131" text-anchor="middle" fill="#1e40af" font-size="10" font-family="JetBrains Mono">imm[4:0]</text>
+          <rect x="400" y="116" width="80" height="22" rx="3" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+          <text x="440" y="131" text-anchor="middle" fill="#92400e" font-size="10" font-family="JetBrains Mono">opcode[7]</text>
+
+          <!-- B-type -->
+          <text x="10" y="176" fill="#1e293b" font-size="11" font-weight="700" font-family="Inter">B-type</text>
+          <rect x="80" y="162" width="40" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="100" y="177" text-anchor="middle" fill="#1e40af" font-size="9" font-family="JetBrains Mono">i[12]</text>
+          <rect x="122" y="162" width="38" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="141" y="177" text-anchor="middle" fill="#1e40af" font-size="9" font-family="JetBrains Mono">i[10:5]</text>
+          <rect x="162" y="162" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="192" y="177" text-anchor="middle" fill="#5b21b6" font-size="9" font-family="JetBrains Mono">rs2</text>
+          <rect x="224" y="162" width="60" height="22" rx="3" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="254" y="177" text-anchor="middle" fill="#5b21b6" font-size="9" font-family="JetBrains Mono">rs1</text>
+          <rect x="286" y="162" width="50" height="22" rx="3" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+          <text x="311" y="177" text-anchor="middle" fill="#065f46" font-size="9" font-family="JetBrains Mono">fn3</text>
+          <rect x="338" y="162" width="38" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="357" y="177" text-anchor="middle" fill="#1e40af" font-size="9" font-family="JetBrains Mono">i[4:1]</text>
+          <rect x="378" y="162" width="22" height="22" rx="3" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="389" y="177" text-anchor="middle" fill="#1e40af" font-size="9" font-family="JetBrains Mono">i[11]</text>
+          <rect x="402" y="162" width="78" height="22" rx="3" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+          <text x="441" y="177" text-anchor="middle" fill="#92400e" font-size="9" font-family="JetBrains Mono">opcode</text>
+
+          <!-- Legend -->
+          <rect x="510" y="16" width="14" height="14" rx="2" fill="#dbeafe" stroke="#93c5fd" stroke-width="1"/>
+          <text x="528" y="27" fill="#475569" font-size="10" font-family="Inter">Immediate</text>
+          <rect x="510" y="38" width="14" height="14" rx="2" fill="#ede9fe" stroke="#a78bfa" stroke-width="1"/>
+          <text x="528" y="49" fill="#475569" font-size="10" font-family="Inter">Register</text>
+          <rect x="510" y="60" width="14" height="14" rx="2" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+          <text x="528" y="71" fill="#475569" font-size="10" font-family="Inter">funct3</text>
+          <rect x="510" y="82" width="14" height="14" rx="2" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+          <text x="528" y="93" fill="#475569" font-size="10" font-family="Inter">Destination rd</text>
+          <rect x="510" y="104" width="14" height="14" rx="2" fill="#fef3c7" stroke="#fcd34d" stroke-width="1"/>
+          <text x="528" y="115" fill="#475569" font-size="10" font-family="Inter">Opcode (7 bits)</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S7: CONTROL SIGNALS -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <span class="section-icon">🎛️</span>
+      <h2>7. Control Signal Truth Table</h2>
+    </div>
+    <div class="section-body">
+      <table class="data-table">
+        <thead>
+          <tr><th>Instruction</th><th>RegWrite</th><th>ALUSrc</th><th>MemWrite</th><th>MemRead</th><th>MemToReg</th><th>Branch</th><th>Jump</th><th>ALUOp</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>R-type</strong></td><td>✅ 1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td><code>10</code></td></tr>
+          <tr><td><strong>I-type (ADDI…)</strong></td><td>✅ 1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td><code>11</code></td></tr>
+          <tr><td><strong>LW</strong></td><td>✅ 1</td><td>1</td><td>0</td><td>1</td><td>1</td><td>0</td><td>0</td><td><code>00</code></td></tr>
+          <tr><td><strong>SW</strong></td><td>0</td><td>1</td><td>✅ 1</td><td>0</td><td>X</td><td>0</td><td>0</td><td><code>00</code></td></tr>
+          <tr><td><strong>BEQ/BNE</strong></td><td>0</td><td>0</td><td>0</td><td>0</td><td>X</td><td>✅ 1</td><td>0</td><td><code>01</code></td></tr>
+          <tr><td><strong>JAL</strong></td><td>✅ 1</td><td>X</td><td>0</td><td>0</td><td>0</td><td>0</td><td>✅ 1</td><td><code>00</code></td></tr>
+          <tr><td><strong>LUI</strong></td><td>✅ 1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td><code>00</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ S8: RESOURCES & TIMING -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <span class="section-icon">⏱️</span>
+      <h2>8. Resource Utilization &amp; Timing Analysis</h2>
+    </div>
+    <div class="section-body">
+      <div class="two-col">
+        <div>
+          <h3 style="margin-bottom:16px;">Resource Utilization — Artix-7 xc7a35t</h3>
+          <div class="resource-row">
+            <span class="resource-label">LUTs</span>
+            <div class="resource-bar-bg"><div class="resource-bar" style="width:1.8%;background:linear-gradient(90deg,#3b82f6,#60a5fa);"><span class="resource-pct"></span></div></div>
+            <span class="resource-used">~380 / 20,800 (1.8%)</span>
+          </div>
+          <div class="resource-row">
+            <span class="resource-label">Flip-Flops</span>
+            <div class="resource-bar-bg"><div class="resource-bar" style="width:0.6%;background:linear-gradient(90deg,#8b5cf6,#a78bfa);"><span class="resource-pct"></span></div></div>
+            <span class="resource-used">~260 / 41,600 (0.6%)</span>
+          </div>
+          <div class="resource-row">
+            <span class="resource-label">BRAM</span>
+            <div class="resource-bar-bg"><div class="resource-bar" style="width:0%;background:#10b981;"><span class="resource-pct"></span></div></div>
+            <span class="resource-used">0 / 50 (0%)</span>
+          </div>
+          <div class="resource-row">
+            <span class="resource-label">DSP48</span>
+            <div class="resource-bar-bg"><div class="resource-bar" style="width:0%;background:#f59e0b;"><span class="resource-pct"></span></div></div>
+            <span class="resource-used">0 / 90 (0%)</span>
+          </div>
+          <div class="info-box" style="margin-top:16px;">
+            <strong>💡 Low utilization</strong> makes this design ideal for integration into larger SoC projects on the same Artix-7 device.
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:16px;">Timing Summary (100 MHz)</h3>
+          <table class="data-table">
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Clock Frequency</td><td><strong>100 MHz</strong></td></tr>
+              <tr><td>Clock Period</td><td>10 ns</td></tr>
+              <tr><td>Critical Path</td><td>RegFile → FwdMUX → ALU → EX/MEM</td></tr>
+              <tr><td>Critical Path Delay</td><td>~7.2 ns</td></tr>
+              <tr><td>Timing Slack</td><td><span class="badge-pass">+2.8 ns ✅</span></td></tr>
+              <tr><td>Target Device</td><td>xc7a35t-1cpg236C</td></tr>
+              <tr><td>Pipeline Depth</td><td>4 stages</td></tr>
+              <tr><td>IPC (ideal)</td><td>1.0 (pipelined)</td></tr>
+            </tbody>
+          </table>
+
+          <!-- critical path SVG -->
+          <div style="margin-top:16px; background:#0f172a; border-radius:8px; padding:14px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#94a3b8;">
+            <div style="color:#60a5fa; margin-bottom:8px;">Critical Path (EX stage):</div>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="background:#1e3a5f;color:#93c5fd;padding:3px 8px;border-radius:4px;">RegFile Read</span>
+              <span style="color:#475569;">→ 1.8ns</span>
+              <span style="background:#3b2f6e;color:#c4b5fd;padding:3px 8px;border-radius:4px;">Fwd MUX</span>
+              <span style="color:#475569;">→ 0.6ns</span>
+              <span style="background:#1f3820;color:#6ee7b7;padding:3px 8px;border-radius:4px;">ALU</span>
+              <span style="color:#475569;">→ 3.2ns</span>
+              <span style="background:#2a1a0a;color:#fdba74;padding:3px 8px;border-radius:4px;">EX/MEM Reg</span>
+              <span style="color:#475569;">→ 1.6ns</span>
+            </div>
+            <div style="margin-top:8px; color:#fbbf24;">Total: ~7.2 ns  |  Slack: +2.8 ns</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S9: TEST RESULTS -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>9. Test Results Summary</h2>
+    </div>
+    <div class="section-body">
+      <div class="result-grid">
+        <div class="result-card">
+          <div class="rc-val">9/9</div>
+          <div class="rc-label">Test Cases Passed</div>
+        </div>
+        <div class="result-card">
+          <div class="rc-val">17</div>
+          <div class="rc-label">Instructions Supported</div>
+        </div>
+        <div class="result-card">
+          <div class="rc-val">100%</div>
+          <div class="rc-label">Pass Rate</div>
+        </div>
+        <div class="result-card">
+          <div class="rc-val">0</div>
+          <div class="rc-label">Unresolved Hazards</div>
+        </div>
+      </div>
+
+      <table class="data-table" style="margin-top:20px;">
+        <thead>
+          <tr><th>#</th><th>Test Case</th><th>Testbench</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Basic Arithmetic — ADD, SUB, ADDI</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>2</td><td>Logical Operations — AND, OR, XOR</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>3</td><td>EX–EX Data Forwarding</td><td><code>tb_forwarding.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>4</td><td>MEM–EX Data Forwarding</td><td><code>tb_forwarding.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>5</td><td>Load-Use Stall (LW → ADD)</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>6</td><td>Store + Load (SW / LW)</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>7</td><td>BEQ Branch Taken</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>8</td><td>BEQ Branch Not Taken</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+          <tr><td>9</td><td>R0 Hardwired to Zero</td><td><code>tb_risc_processor.v</code></td><td><span class="badge-pass">✅ PASS</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ S10: RTL CODE SNIPPETS -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <span class="section-icon">💻</span>
+      <h2>10. Key RTL Code Snippets</h2>
+    </div>
+    <div class="section-body">
+      <div class="two-col">
+        <div>
+          <h3 style="font-size:14px; margin-bottom:8px; color:#8b5cf6;">ALU Module (alu.v)</h3>
+          <div class="code-block">
+<span class="kw">module</span> <span class="nm">alu</span> (
+  <span class="kw">input</span>  [31:0] a, b,
+  <span class="kw">input</span>  [3:0]  alu_ctrl,
+  <span class="kw">output reg</span> [31:0] result,
+  <span class="kw">output wire</span>       zero
+);
+  <span class="kw">always</span> @(*) <span class="kw">begin</span>
+    <span class="kw">case</span> (alu_ctrl)
+      4'b0000: result = a + b;   <span class="cm">// ADD</span>
+      4'b0001: result = a - b;   <span class="cm">// SUB</span>
+      4'b0010: result = a &amp; b;   <span class="cm">// AND</span>
+      4'b0011: result = a | b;   <span class="cm">// OR</span>
+      4'b0100: result = a ^ b;   <span class="cm">// XOR</span>
+      4'b0101: result =          <span class="cm">// SLT</span>
+        ($signed(a)&lt;$signed(b))
+        ? 32'b1 : 32'b0;
+      4'b0111: result = a&lt;&lt;b[4:0]; <span class="cm">// SLL</span>
+      4'b1000: result = a&gt;&gt;b[4:0]; <span class="cm">// SRL</span>
+      4'b1001: result =            <span class="cm">// SRA</span>
+        $signed(a)&gt;&gt;&gt;b[4:0];
+      4'b1010: result = b;         <span class="cm">// LUI</span>
+      default: result = 32'b0;
+    <span class="kw">endcase</span>
+  <span class="kw">end</span>
+  <span class="kw">assign</span> zero = (result == 32'b0);
+<span class="kw">endmodule</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:14px; margin-bottom:8px; color:#f97316;">Forwarding Unit (forwarding_unit.v)</h3>
+          <div class="code-block">
+<span class="kw">module</span> <span class="nm">forwarding_unit</span> (
+  <span class="kw">input</span>  [4:0] ex_rs1, ex_rs2,
+  <span class="kw">input</span>        ex_mem_reg_write,
+  <span class="kw">input</span>  [4:0] ex_mem_rd,
+  <span class="kw">input</span>        mem_wb_reg_write,
+  <span class="kw">input</span>  [4:0] mem_wb_rd,
+  <span class="kw">output reg</span> [1:0] forward_a, forward_b
+);
+<span class="cm">// Priority: EX hazard &gt; MEM hazard</span>
+<span class="kw">always</span> @(*) <span class="kw">begin</span>
+  <span class="cm">// Forward A (RS1)</span>
+  <span class="kw">if</span> (ex_mem_reg_write &amp;&amp;
+      ex_mem_rd != 5'b0 &amp;&amp;
+      ex_mem_rd == ex_rs1)
+    forward_a = 2'b10; <span class="cm">// EX-EX</span>
+  <span class="kw">else if</span> (mem_wb_reg_write &amp;&amp;
+      mem_wb_rd != 5'b0 &amp;&amp;
+      mem_wb_rd == ex_rs1)
+    forward_a = 2'b01; <span class="cm">// MEM-EX</span>
+  <span class="kw">else</span>
+    forward_a = 2'b00; <span class="cm">// reg file</span>
+  <span class="cm">// Forward B (RS2) — same logic</span>
+  ...
+<span class="kw">end</span>
+<span class="kw">endmodule</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:14px; margin-bottom:8px; color:#10b981;">Hazard Detection (hazard_detection.v)</h3>
+          <div class="code-block">
+<span class="kw">module</span> <span class="nm">hazard_detection</span> (
+  <span class="kw">input</span>       id_ex_mem_read,
+  <span class="kw">input</span> [4:0] id_ex_rd,
+  <span class="kw">input</span> [4:0] if_id_rs1, if_id_rs2,
+  <span class="kw">output reg</span> pc_write,
+  <span class="kw">output reg</span> if_id_write,
+  <span class="kw">output reg</span> ctrl_mux_sel
+);
+<span class="kw">always</span> @(*) <span class="kw">begin</span>
+  <span class="kw">if</span> (id_ex_mem_read &amp;&amp;
+     (id_ex_rd == if_id_rs1 ||
+      id_ex_rd == if_id_rs2)) <span class="kw">begin</span>
+    <span class="cm">// Load-use hazard detected</span>
+    pc_write    = 1'b0; <span class="cm">// freeze PC</span>
+    if_id_write = 1'b0; <span class="cm">// freeze IF/ID</span>
+    ctrl_mux_sel = 1'b1; <span class="cm">// NOP bubble</span>
+  <span class="kw">end else begin</span>
+    pc_write    = 1'b1;
+    if_id_write = 1'b1;
+    ctrl_mux_sel = 1'b0;
+  <span class="kw">end</span>
+<span class="kw">end</span>
+<span class="kw">endmodule</span>
+          </div>
+        </div>
+        <div>
+          <h3 style="font-size:14px; margin-bottom:8px; color:#3b82f6;">Immediate Generator (imm_gen.v)</h3>
+          <div class="code-block">
+<span class="kw">module</span> <span class="nm">imm_gen</span> (
+  <span class="kw">input</span>  [31:0] instruction,
+  <span class="kw">output reg</span> [31:0] imm_out
+);
+<span class="kw">wire</span> [6:0] opcode = instruction[6:0];
+<span class="kw">always</span> @(*) <span class="kw">begin</span>
+  <span class="kw">case</span> (opcode)
+  7'b0010011, <span class="cm">// I-type</span>
+  7'b0000011: <span class="cm">// LW</span>
+    imm_out = {{20{instr[31]}},
+               instr[31:20]};
+  7'b0100011: <span class="cm">// S-type</span>
+    imm_out = {{20{instr[31]}},
+               instr[31:25],instr[11:7]};
+  7'b1100011: <span class="cm">// B-type</span>
+    imm_out = {{20{instr[31]}},
+               instr[7],instr[30:25],
+               instr[11:8],1'b0};
+  7'b0110111: <span class="cm">// U-type LUI</span>
+    imm_out = {instr[31:12], 12'b0};
+  7'b1101111: <span class="cm">// J-type JAL</span>
+    imm_out = {{12{instr[31]}},
+               instr[19:12],instr[20],
+               instr[30:21],1'b0};
+  <span class="kw">endcase</span>
+<span class="kw">end</span>
+<span class="kw">endmodule</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ S11: LIMITATIONS -->
+  <div class="section" id="s11">
+    <div class="section-header">
+      <span class="section-icon">🔮</span>
+      <h2>11. Known Limitations &amp; Future Work</h2>
+    </div>
+    <div class="section-body">
+      <div class="two-col">
+        <div>
+          <h3 style="color:#dc2626; margin-bottom:12px;">⚠️ Current Limitations</h3>
+          <div class="warn-box">
+            <strong>1. No Interrupt/Exception Support</strong><br>
+            No traps, CSR registers, or privilege modes. ECALL/EBREAK are not handled.
+          </div>
+          <div class="warn-box" style="margin-top:10px;">
+            <strong>2. Single-Cycle Memory</strong><br>
+            Both instruction and data memories are synchronous ROM/RAM with no latency. Real DRAM integration would require stall logic.
+          </div>
+          <div class="warn-box" style="margin-top:10px;">
+            <strong>3. Branch Resolved in MEM Stage</strong><br>
+            A 1-cycle flush penalty on every taken branch. Earlier (ID-stage) branch resolution would eliminate this.
+          </div>
+          <div class="warn-box" style="margin-top:10px;">
+            <strong>4. No Cache Hierarchy</strong><br>
+            Direct memory access only. Cache misses would require additional stall logic not present in this design.
+          </div>
+        </div>
+        <div>
+          <h3 style="color:#059669; margin-bottom:12px;">🚀 Future Enhancements</h3>
+          <div class="info-box">
+            <strong>1. Branch Prediction</strong><br>
+            Add a 2-bit saturating counter predictor to eliminate most control hazard penalties.
+          </div>
+          <div class="info-box" style="margin-top:10px;">
+            <strong>2. Full RV32I ISA</strong><br>
+            Implement remaining instructions: SLTI, SLTIU, ANDI, ORI, XORI, SLLI, SRLI, SRAI, AUIPC, JALR.
+          </div>
+          <div class="info-box" style="margin-top:10px;">
+            <strong>3. Instruction Cache</strong><br>
+            Direct-mapped I-cache to reduce instruction fetch latency on larger programs.
+          </div>
+          <div class="info-box" style="margin-top:10px;">
+            <strong>4. 5-Stage Pipeline</strong><br>
+            Split MEM/WB into separate stages to further improve clock frequency.
+          </div>
+          <div class="info-box" style="margin-top:10px;">
+            <strong>5. FPGA Peripheral Integration</strong><br>
+            Add UART, GPIO, and timer peripherals for a minimal SoC implementation on the Basys3 board.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <div>
+    <strong style="color:#e2e8f0;">4-Stage Pipelined RISC Processor</strong><br>
+    Author: <span>Shivam Sharma</span> &nbsp;|&nbsp; Roll: <span>225EC50006</span> &nbsp;|&nbsp;
+    Department: <span>Electronics &amp; Communication Engineering</span> &nbsp;|&nbsp;
+    <span>December 2025</span>
+  </div>
+  <div style="margin-top:10px; font-size:11px;">
+    Tools: Xilinx Vivado · Verilog HDL · RISC-V RV32I Architecture · Artix-7 FPGA
+  </div>
+</div>
+
+</body>
+</html>
