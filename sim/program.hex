@@ -1,0 +1,51 @@
+// program.hex — Test program for 4-Stage Pipelined RISC Processor
+// Author: Shivam Sharma
+//
+// Assembly (RISC-V RV32I):
+//
+//   # Initialize registers
+//   addi x1, x0, 10      # x1 = 10
+//   addi x2, x0, 20      # x2 = 20
+//   add  x3, x1, x2      # x3 = x1 + x2 = 30   (EX-EX forwarding test)
+//   sub  x4, x3, x1      # x4 = x3 - x1 = 20   (EX-EX forwarding test)
+//   addi x5, x0, 5       # x5 = 5
+//   and  x6, x3, x5      # x6 = 30 & 5 = 4
+//   or   x7, x1, x2      # x7 = 10 | 20 = 30
+//
+//   # Memory test
+//   sw   x3, 0(x0)       # mem[0] = 30
+//   lw   x8, 0(x0)       # x8 = mem[0] = 30     (load-use stall test)
+//   add  x9, x8, x1      # x9 = 30 + 10 = 40    (MEM-EX forwarding)
+//
+//   # Branch test
+//   addi x10, x0, 10     # x10 = 10
+//   addi x11, x0, 10     # x11 = 10
+//   beq  x10, x11, +8    # branch if x10==x11 (taken)
+//   addi x12, x0, 99     # skipped (branch taken)
+//   addi x12, x0, 55     # x12 = 55 (branch target)
+//   nop                   # padding
+//   nop
+//   nop
+//   nop
+//   nop
+
+00500093
+01400113
+00208133
+401181B3
+00500293
+0051F333
+002163B3
+00302023
+00002403
+00840533
+00A00513
+00A00593
+00B50063
+06300613
+03700613
+00000013
+00000013
+00000013
+00000013
+00000013

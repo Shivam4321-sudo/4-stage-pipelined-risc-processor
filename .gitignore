@@ -1,0 +1,31 @@
+# Xilinx Vivado generated files
+vivado_project/
+*.jou
+*.log
+*.str
+*.vcd
+*.wdb
+*.pb
+*.dcp
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/
+*.xpr
+*.bit
+*.bin
+*.ltx
+*.rpt
+*.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+.vscode/
+.idea/
